@@ -611,7 +611,48 @@ function exportCSV(){
 
 Chart.defaults.color='#a0a0aa';
 Chart.defaults.font.family="'Inter Tight', sans-serif";
-nav('org');
+
+async function init() {
+  if (USE_LIVE_DATA && DATA_ENDPOINT) {
+    try {
+      const resp = await fetch(DATA_ENDPOINT);
+      const live = await resp.json();
+
+      // Merge live Claude data into hardcoded TOOLS
+      const claudeLive = (live.tools || []).find(t => t.id === 'claude');
+      if (claudeLive) {
+        TOOLS.claude = {
+          ...TOOLS.claude,
+          lic: claudeLive.lic || TOOLS.claude.lic,
+          act: claudeLive.act || TOOLS.claude.act,
+          spend: claudeLive.spend || TOOLS.claude.spend,
+          flag: claudeLive.flag || TOOLS.claude.flag,
+          tokens_m: claudeLive.tokens_m,
+          web_searches: claudeLive.web_searches,
+          live: true
+        };
+        console.log('✓ Live Claude data:', claudeLive);
+      }
+
+      // Update the header sub-line to show live status
+      const sub = document.querySelector('.header-left .sub');
+      if (sub && live.refreshed) {
+        const when = new Date(live.refreshed).toLocaleString();
+        const userCount = (live.users || []).length;
+        sub.innerHTML = `<span class="live-dot"></span>Live data · ${userCount} Claude users · refreshed ${when}`;
+      }
+
+      // Store users globally for later use
+      window.LIVE_USERS = live.users || [];
+      console.log(`✓ Loaded ${window.LIVE_USERS.length} users from Anthropic Admin API`);
+    } catch (e) {
+      console.warn('Live data fetch failed, using mock data:', e);
+    }
+  }
+  nav('org');
+}
+
+init();
 </script>
 </body>
 </html>
