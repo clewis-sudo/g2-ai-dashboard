@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>G2 AI Adoption Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0b;
+    --surface: #131316;
+    --surface-2: #1a1a1f;
+    --surface-3: #22222a;
+    --border: #2a2a33;
+    --border-strong: #3a3a45;
+    --text: #f5f5f7;
+    --text-2: #a0a0aa;
+    --text-3: #6b6b75;
+    --accent: #ff6b3d;
+    --accent-dim: rgba(255, 107, 61, 0.12);
+    --good: #4ade80;
+    --good-dim: rgba(74, 222, 128, 0.12);
+    --warn: #fbbf24;
+    --warn-dim: rgba(251, 191, 36, 0.12);
+    --bad: #f87171;
+    --bad-dim: rgba(248, 113, 113, 0.12);
+    --info: #60a5fa;
+    --info-dim: rgba(96, 165, 250, 0.12);
+    --purple: #a78bfa;
+    --teal: #2dd4bf;
+    --font-sans: 'Inter Tight', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--text); font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  body { padding: 24px; min-height: 100vh; }
+  button { font-family: inherit; cursor: pointer; }
+  select, input { font-family: inherit; }
+
+  /* ───── HEADER ───── */
+  .header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 16px; }
+  .header-left .eyebrow { font-family: var(--font-mono); font-size: 11px; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; }
+  .header-left h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; }
+  .header-left .sub { color: var(--text-2); font-size: 13px; margin-top: 4px; }
+  .header-right { display: flex; gap: 8px; align-items: center; }
+  .ctrl { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: 6px; font-size: 13px; transition: all 0.15s; }
+  .ctrl:hover { border-color: var(--border-strong); background: var(--surface-2); }
+  select.ctrl { appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a0a0aa' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 30px; }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--good); display: inline-block; margin-right: 6px; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* ───── BREADCRUMB ───── */
+  .breadcrumb { display: flex; align-items: center; gap: 8px; margin-bottom: 24px; font-size: 13px; }
+  .crumb { color: var(--text-2); cursor: pointer; padding: 4px 10px; border-radius: 5px; transition: background 0.15s; }
+  .crumb:hover { background: var(--surface); color: var(--text); }
+  .crumb.active { color: var(--accent); font-weight: 500; background: var(--accent-dim); }
+  .crumb-sep { color: var(--text-3); font-family: var(--font-mono); }
+
+  /* ───── KPI GRID ───── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; position: relative; overflow: hidden; }
+  .kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--accent); opacity: 0.5; }
+  .kpi.good::before { background: var(--good); }
+  .kpi.info::before { background: var(--info); }
+  .kpi.warn::before { background: var(--warn); }
+  .kpi-label { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; display: flex; justify-content: space-between; }
+  .kpi-value { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; margin-bottom: 8px; }
+  .kpi-meta { font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
+  .delta { font-family: var(--font-mono); font-size: 11px; padding: 2px 6px; border-radius: 3px; }
+  .delta.up { color: var(--good); background: var(--good-dim); }
+  .delta.dn { color: var(--bad); background: var(--bad-dim); }
+  .delta.flat { color: var(--text-2); background: var(--surface-3); }
+
+  /* ───── LAYOUT GRID ───── */
+  .row { display: grid; gap: 14px; margin-bottom: 14px; }
+  .row.two { grid-template-columns: 1.5fr 1fr; }
+  .row.three { grid-template-columns: 1fr 1fr 1fr; }
+  .row.full { grid-template-columns: 1fr; }
+
+  /* ───── PANEL ───── */
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .panel-title { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+  .panel-sub { font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.08em; text-transform: uppercase; }
+  .panel-actions { display: flex; gap: 6px; }
+  .pill { background: transparent; border: 1px solid var(--border); color: var(--text-2); font-size: 11px; padding: 4px 10px; border-radius: 4px; cursor: pointer; transition: all 0.15s; font-family: var(--font-mono); }
+  .pill:hover, .pill.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+
+  /* ───── CHARTS ───── */
+  .chart-wrap { position: relative; width: 100%; }
+  .chart-wrap.h200 { height: 200px; }
+  .chart-wrap.h240 { height: 240px; }
+  .chart-wrap.h280 { height: 280px; }
+  .chart-wrap.h320 { height: 320px; }
+
+  /* ───── TABLES ───── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { text-align: left; font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500; padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+  thead th.r, tbody td.r { text-align: right; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.12s; cursor: pointer; }
+  tbody tr:hover { background: var(--surface-2); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody td { padding: 11px 12px; }
+  .mono { font-family: var(--font-mono); font-size: 12px; }
+  .tool-name { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+  .tool-dot { width: 8px; height: 8px; border-radius: 2px; }
+  .bar-cell { display: flex; align-items: center; gap: 10px; }
+  .bar-track { width: 60px; height: 6px; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+
+  /* ───── BADGE ───── */
+  .badge { font-family: var(--font-mono); font-size: 10px; padding: 2px 7px; border-radius: 3px; letter-spacing: 0.04em; text-transform: uppercase; font-weight: 500; }
+  .badge.g { color: var(--good); background: var(--good-dim); }
+  .badge.w { color: var(--warn); background: var(--warn-dim); }
+  .badge.b { color: var(--bad); background: var(--bad-dim); }
+  .badge.i { color: var(--info); background: var(--info-dim); }
+  .badge.p { color: var(--purple); background: rgba(167, 139, 250, 0.12); }
+
+  /* ───── OUTCOME RIBBON ───── */
+  .outcomes { background: linear-gradient(135deg, var(--surface), var(--surface-2)); border: 1px solid var(--accent); border-radius: 10px; padding: 20px; }
+  .outcomes-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .outcomes-header .icon { width: 22px; height: 22px; border-radius: 5px; background: var(--accent); display: flex; align-items: center; justify-content: center; }
+  .outcomes-title { font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.04em; text-transform: uppercase; font-family: var(--font-mono); }
+  .outcomes-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+  .outcome { }
+  .outcome-label { font-size: 11px; color: var(--text-2); margin-bottom: 6px; font-family: var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; }
+  .outcome-value { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+  .outcome-delta { font-family: var(--font-mono); font-size: 11px; color: var(--good); margin-top: 4px; }
+  .outcome-prev { font-family: var(--font-mono); font-size: 10px; color: var(--text-3); }
+
+  /* ───── DEPARTMENT CARDS ───── */
+  .dept-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .dept-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; cursor: pointer; transition: all 0.18s; }
+  .dept-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .dept-card .name { font-size: 13px; font-weight: 600; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+  .dept-card .stat { font-family: var(--font-mono); font-size: 22px; font-weight: 600; }
+  .dept-card .sub-stat { font-size: 11px; color: var(--text-2); margin-top: 4px; font-family: var(--font-mono); }
+  .dept-bar { height: 4px; background: var(--surface-3); border-radius: 2px; margin-top: 10px; overflow: hidden; }
+  .dept-bar-fill { height: 100%; border-radius: 2px; }
+
+  /* ───── USER CARDS ───── */
+  .user-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer; transition: padding 0.15s; }
+  .user-row:hover { padding-left: 4px; }
+  .user-row:last-child { border-bottom: none; }
+  .user-left { display: flex; align-items: center; gap: 12px; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--surface-3); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: var(--text); border: 1px solid var(--border-strong); }
+  .user-meta .name { font-size: 13px; font-weight: 500; }
+  .user-meta .role { font-size: 11px; color: var(--text-3); font-family: var(--font-mono); }
+  .user-right { font-family: var(--font-mono); font-size: 13px; font-weight: 500; text-align: right; }
+  .user-tools-mini { display: flex; gap: 3px; margin-top: 3px; }
+  .tool-chip { width: 14px; height: 4px; border-radius: 1px; }
+
+  /* ───── DRILL FOOTER ───── */
+  .footer-note { margin-top: 24px; padding: 14px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 10px; }
+  .footer-note .icon { color: var(--info); }
+  .footer-cta { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .cta { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: 6px; font-size: 12px; transition: all 0.15s; }
+  .cta:hover { border-color: var(--accent); color: var(--accent); }
+  .cta.primary { background: var(--accent); border-color: var(--accent); color: #0a0a0b; font-weight: 600; }
+  .cta.primary:hover { background: #ff8a5f; }
+
+  /* ───── INDIVIDUAL VIEW ───── */
+  .user-detail { display: none; }
+  .user-detail.active { display: block; }
+  .user-hero { display: flex; align-items: center; gap: 18px; padding: 24px; background: linear-gradient(135deg, var(--surface), var(--surface-2)); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 14px; }
+  .avatar-lg { width: 64px; height: 64px; border-radius: 50%; background: var(--accent-dim); border: 2px solid var(--accent); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 22px; font-weight: 600; color: var(--accent); }
+  .user-hero-info h2 { font-size: 22px; font-weight: 600; margin-bottom: 4px; letter-spacing: -0.01em; }
+  .user-hero-info p { color: var(--text-2); font-size: 13px; }
+  .user-hero-stats { margin-left: auto; display: flex; gap: 32px; }
+  .hero-stat { text-align: right; }
+  .hero-stat-label { font-family: var(--font-mono); font-size: 10px; color: var(--text-3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
+  .hero-stat-value { font-size: 20px; font-weight: 600; font-family: var(--font-mono); }
+
+  /* ───── RESPONSIVE ───── */
+  @media (max-width: 1024px) {
+    .kpi-grid, .dept-grid, .outcomes-grid { grid-template-columns: repeat(2, 1fr); }
+    .row.two, .row.three { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .kpi-grid, .dept-grid, .outcomes-grid { grid-template-columns: 1fr; }
+    body { padding: 14px; }
+  }
+
+  /* ───── VIEWS ───── */
+  .view { display: none; animation: fadeIn 0.3s ease-out; }
+  .view.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ───── SCROLLBAR ───── */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ HEADER ═══════════════════ -->
+<div class="header">
+  <div class="header-left">
+    <div class="eyebrow">G2 IT · AI program</div>
+    <h1>AI adoption command center</h1>
+    <div class="sub"><span class="live-dot"></span>Live · last sync 4 min ago · 9 data sources · all systems nominal</div>
+  </div>
+  <div class="header-right">
+    <select class="ctrl" id="rangeSel">
+      <option value="7">Last 7 days</option>
+      <option value="30" selected>Last 30 days</option>
+      <option value="90">Last 90 days</option>
+      <option value="ytd">YTD</option>
+    </select>
+    <button class="ctrl" onclick="exportCSV()">↓ Export</button>
+    <button class="ctrl" onclick="alert('Refresh — would re-pull all data sources')">⟳</button>
+  </div>
+</div>
+
+<!-- ═══════════════════ BREADCRUMB ═══════════════════ -->
+<div class="breadcrumb" id="breadcrumb">
+  <span class="crumb active" data-level="org">G2 organization</span>
+</div>
+
+<!-- ═══════════════════ ORG VIEW ═══════════════════ -->
+<div class="view active" id="view-org">
+
+  <!-- KPI ROW -->
+  <div class="kpi-grid">
+    <div class="kpi good">
+      <div class="kpi-label"><span>Active AI users · 30d</span><span class="mono" style="color:var(--text-2)">DAU</span></div>
+      <div class="kpi-value">1,247</div>
+      <div class="kpi-meta"><span class="delta up">↑ 14%</span><span>68% of headcount · +89 vs prior</span></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label"><span>Tokens consumed</span><span class="mono" style="color:var(--text-2)">30d</span></div>
+      <div class="kpi-value">2.84B</div>
+      <div class="kpi-meta"><span class="delta up">↑ 22%</span><span>across 9 sanctioned tools</span></div>
+    </div>
+    <div class="kpi warn">
+      <div class="kpi-label"><span>AI spend</span><span class="mono" style="color:var(--text-2)">30d</span></div>
+      <div class="kpi-value">$48,210</div>
+      <div class="kpi-meta"><span class="delta up">↑ 8%</span><span>$2.1K shelfware identified</span></div>
+    </div>
+    <div class="kpi info">
+      <div class="kpi-label"><span>License utilization</span><span class="mono" style="color:var(--text-2)">org</span></div>
+      <div class="kpi-value">71%</div>
+      <div class="kpi-meta"><span class="delta up">↑ 9pt</span><span>3 tools below 30%</span></div>
+    </div>
+  </div>
+
+  <!-- TREND + SPEND -->
+  <div class="row two">
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Token consumption · daily</div>
+          <div class="panel-sub">millions · stacked by tool</div>
+        </div>
+        <div class="panel-actions">
+          <button class="pill active">Tokens</button>
+          <button class="pill">Sessions</button>
+          <button class="pill">Spend</button>
+        </div>
+      </div>
+      <div class="chart-wrap h280"><canvas id="trendChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Spend by tool</div>
+          <div class="panel-sub">current month</div>
+        </div>
+      </div>
+      <div class="chart-wrap h280"><canvas id="spendChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- DEPARTMENT GRID -->
+  <div class="panel" style="margin-top:14px;">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">Department adoption · click to drill in</div>
+        <div class="panel-sub">% headcount actively using AI tools (30d)</div>
+      </div>
+      <div class="panel-actions">
+        <button class="pill active">By dept</button>
+        <button class="pill">By tool</button>
+        <button class="pill">By manager</button>
+      </div>
+    </div>
+    <div class="dept-grid" id="deptGrid"></div>
+  </div>
+
+  <!-- TOOL INVENTORY -->
+  <div class="panel" style="margin-top:14px;">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">Sanctioned AI stack</div>
+        <div class="panel-sub">licenses · activity · cost · data source</div>
+      </div>
+      <div class="panel-actions">
+        <button class="pill" onclick="alert('Would filter to tools with <30% utilization')">Find underused</button>
+        <button class="pill" onclick="exportCSV()">Export</button>
+      </div>
+    </div>
+    <table id="toolTable">
+      <thead>
+        <tr>
+          <th>Tool</th>
+          <th class="r">Licenses</th>
+          <th class="r">Active 30d</th>
+          <th>Utilization</th>
+          <th class="r">Tokens</th>
+          <th class="r">Spend</th>
+          <th>Source</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="toolTbody"></tbody>
+    </table>
+  </div>
+
+  <!-- OUTCOMES RIBBON -->
+  <div class="outcomes" style="margin-top:14px;">
+    <div class="outcomes-header">
+      <div class="icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0a0a0b" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
+      <div class="outcomes-title">Outcome metrics · the numbers that matter</div>
+    </div>
+    <div class="outcomes-grid">
+      <div class="outcome">
+        <div class="outcome-label">IT ticket resolution</div>
+        <div class="outcome-value">11.2 hrs</div>
+        <div class="outcome-delta">↓ 39% from baseline</div>
+        <div class="outcome-prev">prev: 18.4 hrs</div>
+      </div>
+      <div class="outcome">
+        <div class="outcome-label">Eng PR cycle time</div>
+        <div class="outcome-value">2.1 days</div>
+        <div class="outcome-delta">↓ 38% from baseline</div>
+        <div class="outcome-prev">prev: 3.4 days</div>
+      </div>
+      <div class="outcome">
+        <div class="outcome-label">CS first response</div>
+        <div class="outcome-value">14 min</div>
+        <div class="outcome-delta">↓ 56% from baseline</div>
+        <div class="outcome-prev">prev: 32 min</div>
+      </div>
+      <div class="outcome">
+        <div class="outcome-label">Sales proposal time</div>
+        <div class="outcome-value">38 min</div>
+        <div class="outcome-delta">↓ 55% from baseline</div>
+        <div class="outcome-prev">prev: 84 min</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    <span class="icon">ℹ</span>
+    <span>Individual user data is admin-visible only and is <strong>never</strong> used in performance reviews. This dashboard supports capacity planning, license rightsizing, and outcome measurement. Governance policy ratified by John Wheeler (InfoSec) and Alex Bradley (CFO).</span>
+  </div>
+</div>
+
+<!-- ═══════════════════ DEPARTMENT VIEW ═══════════════════ -->
+<div class="view" id="view-dept">
+
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-label">Team members</div><div class="kpi-value" id="d-members">—</div><div class="kpi-meta" id="d-members-meta"></div></div>
+    <div class="kpi good"><div class="kpi-label">Active users · 30d</div><div class="kpi-value" id="d-active">—</div><div class="kpi-meta" id="d-active-meta"></div></div>
+    <div class="kpi"><div class="kpi-label">Tokens · 30d</div><div class="kpi-value" id="d-tokens">—</div><div class="kpi-meta" id="d-tokens-meta"></div></div>
+    <div class="kpi warn"><div class="kpi-label">Spend · 30d</div><div class="kpi-value" id="d-spend">—</div><div class="kpi-meta" id="d-spend-meta"></div></div>
+  </div>
+
+  <div class="row two">
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Tool mix · this team</div>
+          <div class="panel-sub">share of AI consumption</div>
+        </div>
+      </div>
+      <div class="chart-wrap h280"><canvas id="deptToolChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Activity trend</div>
+          <div class="panel-sub">daily active users</div>
+        </div>
+      </div>
+      <div class="chart-wrap h280"><canvas id="deptTrendChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:14px;">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">Team members · click to drill in</div>
+        <div class="panel-sub">sorted by token consumption · 30d</div>
+      </div>
+      <div class="panel-actions">
+        <button class="pill active">By tokens</button>
+        <button class="pill">By activity</button>
+        <button class="pill">By spend</button>
+      </div>
+    </div>
+    <table id="deptUserTable">
+      <thead>
+        <tr>
+          <th>Member</th>
+          <th>Role</th>
+          <th class="r">Tokens</th>
+          <th class="r">Sessions</th>
+          <th>Tools used</th>
+          <th class="r">Spend</th>
+          <th>Top use case</th>
+        </tr>
+      </thead>
+      <tbody id="deptUserTbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════ INDIVIDUAL VIEW ═══════════════════ -->
+<div class="view" id="view-user">
+
+  <div class="user-hero">
+    <div class="avatar-lg" id="u-avatar">??</div>
+    <div class="user-hero-info">
+      <h2 id="u-name">—</h2>
+      <p id="u-role">—</p>
+    </div>
+    <div class="user-hero-stats">
+      <div class="hero-stat"><div class="hero-stat-label">Tokens · 30d</div><div class="hero-stat-value" id="u-tokens">—</div></div>
+      <div class="hero-stat"><div class="hero-stat-label">Sessions</div><div class="hero-stat-value" id="u-sessions">—</div></div>
+      <div class="hero-stat"><div class="hero-stat-label">Spend</div><div class="hero-stat-value" id="u-spend">—</div></div>
+      <div class="hero-stat"><div class="hero-stat-label">Rank in dept</div><div class="hero-stat-value" id="u-rank">—</div></div>
+    </div>
+  </div>
+
+  <div class="row two">
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Tool breakdown</div>
+          <div class="panel-sub">tokens per tool · 30d</div>
+        </div>
+      </div>
+      <div class="chart-wrap h240"><canvas id="userToolChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Daily activity</div>
+          <div class="panel-sub">sessions over time</div>
+        </div>
+      </div>
+      <div class="chart-wrap h240"><canvas id="userTrendChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="row two" style="margin-top:14px;">
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Engagement signals</div>
+          <div class="panel-sub">from Anthropic Enterprise Analytics</div>
+        </div>
+      </div>
+      <table id="engagementTable">
+        <thead><tr><th>Signal</th><th class="r">30d count</th><th class="r">Δ vs prior</th></tr></thead>
+        <tbody id="engagementTbody"></tbody>
+      </table>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Most-used skills + connectors</div>
+          <div class="panel-sub">Claude only</div>
+        </div>
+      </div>
+      <table id="skillsTable">
+        <thead><tr><th>Skill / Connector</th><th class="r">Invocations</th><th>Type</th></tr></thead>
+        <tbody id="skillsTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════ DATA LAYER ═══════════════════
+// In production, this comes from your Snowflake warehouse via API.
+// For prototype, mock data anchored to your real G2 numbers.
+
+const TOOLS = {
+  claude:    { name: 'Anthropic Claude',  color: '#a78bfa', src: 'Admin API',     lic: 613,  act: 489, tok: 1240, sp: 18420, status: 'g', util: 80 },
+  chatgpt:   { name: 'OpenAI ChatGPT',    color: '#2dd4bf', src: 'Compliance API', lic: 777,  act: 512, tok: 980,  sp: 12600, status: 'g', util: 66 },
+  gemini:    { name: 'Google Gemini',     color: '#fbbf24', src: 'Workspace SDK',  lic: 1842, act: 238, tok: 420,  sp: 0,     status: 'w', util: 13 },
+  copilot:   { name: 'GitHub Copilot',    color: '#60a5fa', src: 'Copilot API',    lic: 142,  act: 131, tok: 120,  sp: 2840,  status: 'g', util: 92 },
+  cursor:    { name: 'Cursor',            color: '#f472b6', src: 'SSO + invoice',  lic: 84,   act: 79,  tok: 0,    sp: 4830,  status: 'g', util: 94 },
+  granola:   { name: 'Granola',           color: '#fb923c', src: 'Granola MCP',    lic: 195,  act: 148, tok: 0,    sp: 3120,  status: 'g', util: 76 },
+  dust:      { name: 'Dust',              color: '#94a3b8', src: 'Vendor portal',  lic: 147,  act: 42,  tok: 38,   sp: 1820,  status: 'b', util: 29 },
+  qualified: { name: 'Qualified.com',     color: '#a3e635', src: 'OAuth',          lic: 148,  act: 117, tok: 0,    sp: 2940,  status: 'g', util: 79 },
+  otter:     { name: 'Otter.ai',          color: '#22d3ee', src: 'Nudge MCP',      lic: 64,   act: 18,  tok: 0,    sp: 740,   status: 'b', util: 28 }
+};
+
+const DEPARTMENTS = {
+  eng:       { name: 'Engineering',     hc: 248, active: 233, rate: 94, tokens: 980, spend: 16200, color: '#a78bfa' },
+  product:   { name: 'Product R&D',     hc: 142, active: 125, rate: 88, tokens: 612, spend: 9400,  color: '#60a5fa' },
+  it:        { name: 'IT',              hc: 14,  active: 12,  rate: 86, tokens: 142, spend: 2100,  color: '#2dd4bf' },
+  revenue:   { name: 'Revenue / Sales', hc: 312, active: 221, rate: 71, tokens: 380, spend: 7800,  color: '#fbbf24' },
+  marketing: { name: 'Marketing',       hc: 78,  active: 53,  rate: 68, tokens: 240, spend: 4200,  color: '#fb923c' },
+  fpa:       { name: 'FP&A',            hc: 21,  active: 11,  rate: 52, tokens: 88,  spend: 1400,  color: '#f472b6' },
+  cso:       { name: 'CSO',             hc: 88,  active: 36,  rate: 41, tokens: 142, spend: 2900,  color: '#94a3b8' },
+  legal:     { name: 'Legal',           hc: 17,  active: 4,   rate: 24, tokens: 18,  spend: 410,   color: '#f87171' }
+};
+
+// Realistic user data per department
+const USERS = {
+  eng: [
+    { id: 'dk',  name: 'Dan Knox',         role: 'CTO',                  tokens: 128, sessions: 412, spend: 2140, tools: ['claude','copilot','cursor','chatgpt'], usecase: 'Architecture review' },
+    { id: 'md',  name: 'Marty Duffy',      role: 'VP Eng',               tokens: 119, sessions: 389, spend: 1980, tools: ['claude','copilot','cursor'],           usecase: 'AI workflows' },
+    { id: 'tc',  name: 'Tomas Caraccia',   role: 'AI Infrastructure',    tokens: 91,  sessions: 312, spend: 1640, tools: ['claude','chatgpt','cursor'],           usecase: 'MCP development' },
+    { id: 'sb',  name: 'Sam Bishop',       role: 'Staff Eng',            tokens: 78,  sessions: 268, spend: 1280, tools: ['claude','copilot'],                    usecase: 'Code review' },
+    { id: 'rk',  name: 'Riya Kapoor',      role: 'Sr. Eng',              tokens: 64,  sessions: 221, spend: 980,  tools: ['claude','cursor'],                     usecase: 'Test generation' },
+    { id: 'jl',  name: 'Jordan Lee',       role: 'Sr. Eng',              tokens: 58,  sessions: 198, spend: 880,  tools: ['copilot','claude'],                    usecase: 'Refactoring' },
+    { id: 'as',  name: 'Aiden Smith',      role: 'Eng II',               tokens: 42,  sessions: 156, spend: 640,  tools: ['copilot','chatgpt'],                   usecase: 'Bug fixes' },
+    { id: 'pm',  name: 'Priya Menon',      role: 'Eng II',               tokens: 38,  sessions: 142, spend: 580,  tools: ['copilot','claude'],                    usecase: 'Documentation' }
+  ],
+  product: [
+    { id: 'ga',  name: 'Godard Abel',      role: 'CEO',                  tokens: 142, sessions: 521, spend: 2380, tools: ['claude','chatgpt','granola'],         usecase: 'Cowork agents' },
+    { id: 'cl2', name: 'Christine Li',     role: 'Chief of Staff',       tokens: 84,  sessions: 312, spend: 1420, tools: ['claude','granola','chatgpt'],         usecase: 'Strategic synthesis' },
+    { id: 'ru',  name: 'Rachel Uyemura',   role: 'VP Product',           tokens: 72,  sessions: 268, spend: 1180, tools: ['claude','chatgpt','granola'],         usecase: 'Roadmap research' },
+    { id: 'tk',  name: 'Tomoko Kim',       role: 'Sr. PM',               tokens: 56,  sessions: 198, spend: 880,  tools: ['claude','chatgpt'],                   usecase: 'PRD drafting' },
+    { id: 'eg',  name: 'Evan Gomez',       role: 'PM',                   tokens: 41,  sessions: 156, spend: 640,  tools: ['chatgpt','claude'],                   usecase: 'Competitive intel' }
+  ],
+  it: [
+    { id: 'cl',  name: 'Cameron Lewis',    role: 'Sr. IT Manager',       tokens: 97,  sessions: 348, spend: 1620, tools: ['claude','chatgpt','granola','cursor'], usecase: 'MCP development' },
+    { id: 'al',  name: 'Alex Lenane',      role: 'IAM Engineer',         tokens: 38,  sessions: 142, spend: 620,  tools: ['claude','chatgpt'],                   usecase: 'Okta automation' },
+    { id: 'ng',  name: 'Nick Germanski',   role: 'Sr. Systems Admin',    tokens: 32,  sessions: 124, spend: 540,  tools: ['claude','chatgpt'],                   usecase: 'Scripting' },
+    { id: 'jt',  name: 'Johnny Trieu',     role: 'Support Engineer',     tokens: 21,  sessions: 98,  spend: 360,  tools: ['claude','granola'],                   usecase: 'Ticket triage' },
+    { id: 'sk',  name: 'Suraj Kumar K',    role: 'Sr. IT Support, IN',   tokens: 18,  sessions: 84,  spend: 310,  tools: ['claude','chatgpt'],                   usecase: 'Asset management' }
+  ],
+  revenue: [
+    { id: 'sg',  name: 'Stephanie Grant',  role: 'CRO',                  tokens: 48,  sessions: 198, spend: 920,  tools: ['claude','chatgpt','qualified'],       usecase: 'Pipeline review' },
+    { id: 'rm',  name: 'Ryan Mathews',     role: 'VP Sales',             tokens: 38,  sessions: 156, spend: 720,  tools: ['claude','qualified','chatgpt'],       usecase: 'Deal acceleration' },
+    { id: 'ej',  name: 'Emily Johnson',    role: 'Sr. AE',               tokens: 28,  sessions: 124, spend: 540,  tools: ['chatgpt','qualified'],                usecase: 'Prospecting' },
+    { id: 'dh',  name: 'David Hwang',      role: 'AE',                   tokens: 21,  sessions: 98,  spend: 380,  tools: ['chatgpt','qualified'],                usecase: 'Email drafting' },
+    { id: 'mb',  name: 'Maria Bautista',   role: 'BDR Manager',          tokens: 18,  sessions: 84,  spend: 320,  tools: ['chatgpt','qualified','claude'],       usecase: 'Outbound campaigns' }
+  ],
+  marketing: [
+    { id: 'kw',  name: 'Kate Wilson',      role: 'CMO',                  tokens: 38,  sessions: 142, spend: 680,  tools: ['claude','chatgpt'],                   usecase: 'Content strategy' },
+    { id: 'pl',  name: 'Pete Lawson',      role: 'Director, Brand',      tokens: 32,  sessions: 124, spend: 580,  tools: ['chatgpt','claude'],                   usecase: 'Campaign copy' },
+    { id: 'ah',  name: 'Aisha Hassan',     role: 'Sr. Content',          tokens: 24,  sessions: 98,  spend: 410,  tools: ['claude','chatgpt'],                   usecase: 'Blog drafting' }
+  ],
+  fpa: [
+    { id: 'ab',  name: 'Alex Bradley',     role: 'CFO',                  tokens: 38,  sessions: 142, spend: 640,  tools: ['claude','chatgpt'],                   usecase: 'Forecasting model' },
+    { id: 'ng2', name: 'Nina Garcia',      role: 'Director, FP&A',       tokens: 24,  sessions: 98,  spend: 410,  tools: ['claude','chatgpt'],                   usecase: 'Variance analysis' }
+  ],
+  cso: [
+    { id: 'jw',  name: 'John Wheeler',     role: 'Director, InfoSec',    tokens: 41,  sessions: 156, spend: 720,  tools: ['claude','chatgpt'],                   usecase: 'Threat analysis' },
+    { id: 'mt',  name: 'Maria Tanaka',     role: 'Security Engineer',    tokens: 24,  sessions: 98,  spend: 420,  tools: ['claude','chatgpt'],                   usecase: 'Detection rules' }
+  ],
+  legal: [
+    { id: 'eb',  name: 'Eunice Buhler',    role: 'General Counsel',      tokens: 14,  sessions: 62,  spend: 240,  tools: ['claude'],                              usecase: 'Contract review' },
+    { id: 'tn',  name: 'Tim Nguyen',       role: 'Sr. Counsel',          tokens: 4,   sessions: 24,  spend: 80,   tools: ['claude'],                              usecase: 'Legal research' }
+  ]
+};
+
+// ═══════════════════ STATE ═══════════════════
+let state = { level: 'org', dept: null, user: null };
+let currentCharts = {};
+
+function fmt(n) {
+  if (n >= 1000000) return (n/1000000).toFixed(2) + 'B';
+  if (n >= 1000) return (n/1000).toFixed(1) + 'M';
+  return n + 'M';
+}
+function fmtNum(n) { return n.toLocaleString(); }
+function fmtUSD(n) { return '$' + n.toLocaleString(); }
+function initials(name) { return name.split(' ').map(p => p[0]).join('').slice(0,2); }
+function statusBadge(s) { return `<span class="badge ${s}">${s==='g'?'healthy':s==='w'?'monitor':'action'}</span>`; }
+function utilColor(u) { return u >= 70 ? 'var(--good)' : u >= 40 ? 'var(--warn)' : 'var(--bad)'; }
+
+function destroyCharts() { Object.values(currentCharts).forEach(c => c && c.destroy && c.destroy()); currentCharts = {}; }
+
+// ═══════════════════ NAVIGATION ═══════════════════
+function nav(level, dept, user) {
+  state.level = level; state.dept = dept; state.user = user;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + level).classList.add('active');
+  destroyCharts();
+  renderBreadcrumb();
+  if (level === 'org') renderOrg();
+  else if (level === 'dept') renderDept(dept);
+  else if (level === 'user') renderUser(dept, user);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderBreadcrumb() {
+  const bc = document.getElementById('breadcrumb');
+  let html = `<span class="crumb ${state.level==='org'?'active':''}" onclick="nav('org')">G2 organization</span>`;
+  if (state.dept) {
+    html += `<span class="crumb-sep">/</span><span class="crumb ${state.level==='dept'?'active':''}" onclick="nav('dept','${state.dept}')">${DEPARTMENTS[state.dept].name}</span>`;
+  }
+  if (state.user) {
+    const u = USERS[state.dept].find(x => x.id === state.user);
+    html += `<span class="crumb-sep">/</span><span class="crumb active">${u.name}</span>`;
+  }
+  bc.innerHTML = html;
+}
+
+// ═══════════════════ ORG RENDER ═══════════════════
+function renderOrg() {
+  // Department cards
+  const dg = document.getElementById('deptGrid');
+  dg.innerHTML = Object.entries(DEPARTMENTS).map(([key, d]) => `
+    <div class="dept-card" onclick="nav('dept','${key}')">
+      <div class="name">${d.name}<span class="badge ${d.rate>=70?'g':d.rate>=50?'w':'b'}">${d.rate}%</span></div>
+      <div class="stat" style="color:${d.color}">${d.active}<span style="font-size:13px;color:var(--text-3);font-weight:400">/${d.hc}</span></div>
+      <div class="sub-stat">${d.tokens}M tokens · ${fmtUSD(d.spend)}</div>
+      <div class="dept-bar"><div class="dept-bar-fill" style="width:${d.rate}%;background:${d.color}"></div></div>
+    </div>
+  `).join('');
+
+  // Tool table
+  const tb = document.getElementById('toolTbody');
+  tb.innerHTML = Object.entries(TOOLS).map(([k, t]) => `
+    <tr>
+      <td><div class="tool-name"><div class="tool-dot" style="background:${t.color}"></div>${t.name}</div></td>
+      <td class="r mono">${fmtNum(t.lic)}</td>
+      <td class="r mono">${fmtNum(t.act)}</td>
+      <td><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:${t.util}%;background:${utilColor(t.util)}"></div></div><span class="mono" style="color:${utilColor(t.util)};font-weight:500">${t.util}%</span></div></td>
+      <td class="r mono">${t.tok ? t.tok + 'M' : '—'}</td>
+      <td class="r mono">${t.sp ? fmtUSD(t.sp) : 'incl.'}</td>
+      <td><span class="badge i">${t.src}</span></td>
+      <td>${statusBadge(t.status)}</td>
+    </tr>
+  `).join('');
+
+  // Trend chart
+  const days = Array.from({length: 30}, (_,i) => `D${i+1}`);
+  currentCharts.trend = new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+      labels: days,
+      datasets: [
+        { label: 'Claude',  data: days.map((_,i) => 30 + Math.sin(i/3)*8 + i*0.6), backgroundColor: 'rgba(167,139,250,0.18)', borderColor: '#a78bfa', borderWidth: 1.5, tension: 0.35, fill: true, pointRadius: 0 },
+        { label: 'ChatGPT', data: days.map((_,i) => 22 + Math.cos(i/4)*6 + i*0.3), backgroundColor: 'rgba(45,212,191,0.14)',  borderColor: '#2dd4bf', borderWidth: 1.5, tension: 0.35, fill: true, pointRadius: 0 },
+        { label: 'Gemini',  data: days.map((_,i) => 10 + Math.sin(i/5)*3 + i*0.15),backgroundColor: 'rgba(251,191,36,0.12)',  borderColor: '#fbbf24', borderWidth: 1.5, tension: 0.35, fill: true, pointRadius: 0 },
+        { label: 'Copilot', data: days.map((_,i) => 4 + Math.sin(i/4)*1.2),         backgroundColor: 'rgba(96,165,250,0.12)',  borderColor: '#60a5fa', borderWidth: 1.5, tension: 0.35, fill: true, pointRadius: 0 }
+      ]
+    },
+    options: chartOpts('trend')
+  });
+
+  // Spend chart (horizontal bar)
+  currentCharts.spend = new Chart(document.getElementById('spendChart'), {
+    type: 'bar',
+    data: {
+      labels: Object.values(TOOLS).filter(t => t.sp > 0).map(t => t.name),
+      datasets: [{
+        data: Object.values(TOOLS).filter(t => t.sp > 0).map(t => t.sp),
+        backgroundColor: Object.values(TOOLS).filter(t => t.sp > 0).map(t => t.color),
+        borderWidth: 0,
+        borderRadius: 4
+      }]
+    },
+    options: { ...chartOpts('spendH'), indexAxis: 'y' }
+  });
+}
+
+// ═══════════════════ DEPT RENDER ═══════════════════
+function renderDept(deptKey) {
+  const d = DEPARTMENTS[deptKey];
+  const users = USERS[deptKey] || [];
+  document.getElementById('d-members').textContent = d.hc;
+  document.getElementById('d-members-meta').innerHTML = `<span>${users.length} tracked individuals shown</span>`;
+  document.getElementById('d-active').textContent = d.active;
+  document.getElementById('d-active-meta').innerHTML = `<span class="delta up">${d.rate}%</span><span>of team headcount</span>`;
+  document.getElementById('d-tokens').textContent = d.tokens + 'M';
+  document.getElementById('d-tokens-meta').innerHTML = `<span>vs ${Math.round(d.tokens*0.82)}M prior period</span>`;
+  document.getElementById('d-spend').textContent = fmtUSD(d.spend);
+  document.getElementById('d-spend-meta').innerHTML = `<span>${(d.spend/d.active).toFixed(0)} per active user</span>`;
+
+  // User table
+  const tb = document.getElementById('deptUserTbody');
+  tb.innerHTML = users.map(u => `
+    <tr onclick="nav('user','${deptKey}','${u.id}')">
+      <td><div class="user-left"><div class="avatar">${initials(u.name)}</div><div class="user-meta"><div class="name">${u.name}</div></div></div></td>
+      <td><span class="mono" style="color:var(--text-2);font-size:11px">${u.role}</span></td>
+      <td class="r mono">${u.tokens}M</td>
+      <td class="r mono">${u.sessions}</td>
+      <td><div class="user-tools-mini">${u.tools.map(t => `<div class="tool-chip" style="background:${TOOLS[t].color}" title="${TOOLS[t].name}"></div>`).join('')}</div></td>
+      <td class="r mono">${fmtUSD(u.spend)}</td>
+      <td><span class="badge p">${u.usecase}</span></td>
+    </tr>
+  `).join('');
+
+  // Tool mix for dept (aggregated from users)
+  const mix = {};
+  users.forEach(u => {
+    const perTool = u.tokens / u.tools.length;
+    u.tools.forEach(t => { mix[t] = (mix[t] || 0) + perTool; });
+  });
+  currentCharts.deptTool = new Chart(document.getElementById('deptToolChart'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(mix).map(k => TOOLS[k].name),
+      datasets: [{ data: Object.values(mix).map(v => Math.round(v)), backgroundColor: Object.keys(mix).map(k => TOOLS[k].color), borderWidth: 0 }]
+    },
+    options: chartOpts('donut')
+  });
+
+  // Trend for dept
+  const days = Array.from({length: 30}, (_,i) => `D${i+1}`);
+  currentCharts.deptTrend = new Chart(document.getElementById('deptTrendChart'), {
+    type: 'line',
+    data: {
+      labels: days,
+      datasets: [{ label: 'Active users', data: days.map((_,i) => Math.round(d.active * (0.7 + Math.sin(i/4)*0.1 + i*0.008))), backgroundColor: d.color+'22', borderColor: d.color, borderWidth: 2, tension: 0.35, fill: true, pointRadius: 0 }]
+    },
+    options: chartOpts('trend')
+  });
+}
+
+// ═══════════════════ USER RENDER ═══════════════════
+function renderUser(deptKey, userId) {
+  const u = USERS[deptKey].find(x => x.id === userId);
+  if (!u) return;
+  const sortedUsers = [...USERS[deptKey]].sort((a,b) => b.tokens - a.tokens);
+  const rank = sortedUsers.findIndex(x => x.id === userId) + 1;
+
+  document.getElementById('u-avatar').textContent = initials(u.name);
+  document.getElementById('u-name').textContent = u.name;
+  document.getElementById('u-role').textContent = `${u.role} · ${DEPARTMENTS[deptKey].name}`;
+  document.getElementById('u-tokens').textContent = u.tokens + 'M';
+  document.getElementById('u-sessions').textContent = u.sessions;
+  document.getElementById('u-spend').textContent = fmtUSD(u.spend);
+  document.getElementById('u-rank').textContent = `#${rank} of ${USERS[deptKey].length}`;
+
+  // Tool breakdown
+  const perTool = u.tokens / u.tools.length;
+  currentCharts.userTool = new Chart(document.getElementById('userToolChart'), {
+    type: 'bar',
+    data: {
+      labels: u.tools.map(t => TOOLS[t].name),
+      datasets: [{ data: u.tools.map(() => Math.round(perTool * (0.7 + Math.random() * 0.6))), backgroundColor: u.tools.map(t => TOOLS[t].color), borderWidth: 0, borderRadius: 4 }]
+    },
+    options: { ...chartOpts('barV'), indexAxis: 'y' }
+  });
+
+  // Daily activity
+  const days = Array.from({length: 30}, (_,i) => `D${i+1}`);
+  currentCharts.userTrend = new Chart(document.getElementById('userTrendChart'), {
+    type: 'bar',
+    data: {
+      labels: days,
+      datasets: [{ label: 'Sessions', data: days.map(() => Math.round(u.sessions/30 * (0.4 + Math.random()*1.4))), backgroundColor: '#ff6b3d', borderWidth: 0, borderRadius: 2 }]
+    },
+    options: chartOpts('barDaily')
+  });
+
+  // Engagement signals
+  const eb = document.getElementById('engagementTbody');
+  const signals = [
+    { name: 'Conversations',     v: u.sessions,                d: '+18%' },
+    { name: 'Claude Code sessions', v: Math.round(u.sessions*0.32), d: '+24%' },
+    { name: 'Cowork actions',    v: Math.round(u.sessions*0.18), d: '+42%' },
+    { name: 'Projects created',  v: Math.round(u.sessions*0.05), d: '+12%' },
+    { name: 'MCP tool calls',    v: Math.round(u.sessions*1.8),  d: '+38%' }
+  ];
+  eb.innerHTML = signals.map(s => `<tr><td>${s.name}</td><td class="r mono">${fmtNum(s.v)}</td><td class="r"><span class="delta up">${s.d}</span></td></tr>`).join('');
+
+  // Skills / connectors
+  const sb = document.getElementById('skillsTbody');
+  const skills = [
+    { name: 'web_search',         v: Math.round(u.sessions*0.84), type: 'Skill' },
+    { name: 'computer-use',       v: Math.round(u.sessions*0.12), type: 'Skill' },
+    { name: 'Google Calendar',    v: Math.round(u.sessions*0.42), type: 'Connector' },
+    { name: 'Atlassian',          v: Math.round(u.sessions*0.38), type: 'Connector' },
+    { name: 'Slack',              v: Math.round(u.sessions*0.31), type: 'Connector' },
+    { name: 'Gmail',              v: Math.round(u.sessions*0.28), type: 'Connector' }
+  ];
+  sb.innerHTML = skills.map(s => `<tr><td class="mono">${s.name}</td><td class="r mono">${fmtNum(s.v)}</td><td><span class="badge ${s.type==='Skill'?'p':'i'}">${s.type}</span></td></tr>`).join('');
+}
+
+// ═══════════════════ CHART CONFIG ═══════════════════
+function chartOpts(kind) {
+  const grid = { color: '#22222a', lineWidth: 0.5 };
+  const ticks = { color: '#6b6b75', font: { family: "'JetBrains Mono', monospace", size: 10 } };
+  const common = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+      legend: { display: kind === 'trend', position: 'bottom', labels: { color: '#a0a0aa', font: { size: 11, family: "'Inter Tight', sans-serif" }, boxWidth: 10, boxHeight: 10, padding: 12, usePointStyle: false } },
+      tooltip: { backgroundColor: '#131316', borderColor: '#2a2a33', borderWidth: 1, titleColor: '#f5f5f7', bodyColor: '#a0a0aa', titleFont: { family: "'Inter Tight'", size: 12 }, bodyFont: { family: "'JetBrains Mono'", size: 11 }, padding: 10, cornerRadius: 6 }
+    }
+  };
+  if (kind === 'trend') return { ...common, scales: { x: { grid: { display: false }, ticks: { ...ticks, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } }, y: { grid, ticks, beginAtZero: true } } };
+  if (kind === 'donut') return { ...common, cutout: '62%', plugins: { ...common.plugins, legend: { display: true, position: 'right', labels: { color: '#a0a0aa', font: { size: 11 }, boxWidth: 10, boxHeight: 10, padding: 8 } } } };
+  if (kind === 'spendH') return { ...common, scales: { x: { grid, ticks: { ...ticks, callback: v => '$' + (v/1000).toFixed(0) + 'k' } }, y: { grid: { display: false }, ticks: { ...ticks, font: { ...ticks.font, size: 11 } } } } };
+  if (kind === 'barV') return { ...common, scales: { x: { grid, ticks: { ...ticks, callback: v => v + 'M' } }, y: { grid: { display: false }, ticks } } };
+  if (kind === 'barDaily') return { ...common, scales: { x: { grid: { display: false }, ticks: { ...ticks, maxTicksLimit: 10, maxRotation: 0 } }, y: { grid, ticks } } };
+  return common;
+}
+
+// ═══════════════════ EXPORT ═══════════════════
+function exportCSV() {
+  let csv = 'Tool,Licenses,Active 30d,Utilization %,Tokens (M),Spend (USD),Source\n';
+  Object.values(TOOLS).forEach(t => {
+    csv += `"${t.name}",${t.lic},${t.act},${t.util},${t.tok},${t.sp},"${t.src}"\n`;
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `g2-ai-adoption-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+// ═══════════════════ INIT ═══════════════════
+Chart.defaults.color = '#a0a0aa';
+Chart.defaults.font.family = "'Inter Tight', sans-serif";
+nav('org');
+</script>
+
+</body>
+</html>
